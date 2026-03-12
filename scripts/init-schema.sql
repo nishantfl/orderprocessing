@@ -23,6 +23,8 @@ CREATE TABLE IF NOT EXISTS orders (
   "customerId" UUID NOT NULL,
   status "orders_status_enum" NOT NULL DEFAULT 'PENDING',
   version INTEGER NOT NULL DEFAULT 1,
+  "totalAmount" DECIMAL(10, 2) NOT NULL DEFAULT 0,
+  "totalPaid"   DECIMAL(10, 2) NOT NULL DEFAULT 0,
   "createdAt" TIMESTAMP NOT NULL DEFAULT NOW(),
   "updatedAt" TIMESTAMP NOT NULL DEFAULT NOW(),
   "createdBy" UUID NOT NULL
@@ -45,3 +47,28 @@ CREATE TABLE IF NOT EXISTS order_items (
 
 -- Index for order items (FK lookups)
 CREATE INDEX IF NOT EXISTS idx_order_items_order_id ON order_items ("orderId");
+
+-- Payment status enum (idempotent)
+DO $$ BEGIN
+  CREATE TYPE "payments_status_enum" AS ENUM (
+    'PENDING',
+    'CONFIRMED',
+    'FAILED'
+  );
+EXCEPTION
+  WHEN duplicate_object THEN NULL;
+END $$;
+
+-- Payments table
+CREATE TABLE IF NOT EXISTS payments (
+  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  "orderId" UUID NOT NULL REFERENCES orders(id) ON DELETE CASCADE,
+  amount DECIMAL(10, 2) NOT NULL,
+  status "payments_status_enum" NOT NULL DEFAULT 'PENDING',
+  reference VARCHAR(255),
+  "createdAt" TIMESTAMP NOT NULL DEFAULT NOW(),
+  "updatedAt" TIMESTAMP NOT NULL DEFAULT NOW()
+);
+
+-- Index for payments (FK lookups)
+CREATE INDEX IF NOT EXISTS idx_payments_order_id ON payments ("orderId");

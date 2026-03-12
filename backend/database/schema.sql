@@ -28,6 +28,9 @@ BEGIN
   IF NOT EXISTS (SELECT 1 FROM pg_type WHERE typname = 'order_status') THEN
     CREATE TYPE order_status AS ENUM ('PENDING', 'PROCESSING', 'COMPLETED', 'CANCELLED');
   END IF;
+  IF NOT EXISTS (SELECT 1 FROM pg_type WHERE typname = 'payment_status') THEN
+    CREATE TYPE payment_status AS ENUM ('PENDING', 'CONFIRMED', 'FAILED');
+  END IF;
 END
 $$;
 
@@ -58,14 +61,16 @@ $$;
 --     If not, you can replace it with uuid_generate_v4() from uuid-ossp.
 
 CREATE TABLE IF NOT EXISTS orders (
-    id          UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-    tenant_id   UUID        NOT NULL,
-    customer_id UUID        NOT NULL,
-    status      order_status NOT NULL,
-    version     INT         NOT NULL DEFAULT 1,
-    created_at  TIMESTAMPTZ NOT NULL DEFAULT NOW(),
-    updated_at  TIMESTAMPTZ NOT NULL DEFAULT NOW(),
-    created_by  UUID        NOT NULL
+    id           UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    tenant_id    UUID        NOT NULL,
+    customer_id  UUID        NOT NULL,
+    status       order_status NOT NULL,
+    version      INT         NOT NULL DEFAULT 1,
+    total_amount NUMERIC(10,2) NOT NULL DEFAULT 0,
+    total_paid   NUMERIC(10,2) NOT NULL DEFAULT 0,
+    created_at   TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+    updated_at   TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+    created_by   UUID        NOT NULL
 );
 
 ----------------------------------------------------------------------
@@ -104,6 +109,27 @@ CREATE TABLE IF NOT EXISTS order_items (
 );
 
 ----------------------------------------------------------------------
+-- 5) Payments table
+----------------------------------------------------------------------
+-- What:
+--   Stores individual payments against an order, supporting full and
+--   partial payments.
+
+CREATE TABLE IF NOT EXISTS payments (
+    id          UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    order_id    UUID           NOT NULL,
+    amount      NUMERIC(10,2)  NOT NULL,
+    status      payment_status NOT NULL DEFAULT 'PENDING',
+    reference   VARCHAR(255),
+    created_at  TIMESTAMPTZ    NOT NULL DEFAULT NOW(),
+    updated_at  TIMESTAMPTZ    NOT NULL DEFAULT NOW(),
+    CONSTRAINT fk_payments_order
+      FOREIGN KEY (order_id)
+      REFERENCES orders (id)
+      ON DELETE CASCADE
+);
+
+----------------------------------------------------------------------
 -- 4) Supporting indexes
 ----------------------------------------------------------------------
 -- What:
@@ -133,4 +159,7 @@ CREATE INDEX IF NOT EXISTS idx_orders_tenant_status
 
 CREATE INDEX IF NOT EXISTS idx_order_items_order_id
   ON order_items (order_id);
+
+CREATE INDEX IF NOT EXISTS idx_payments_order_id
+  ON payments (order_id);
 
