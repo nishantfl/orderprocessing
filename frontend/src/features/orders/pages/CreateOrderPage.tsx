@@ -1,26 +1,30 @@
 import { Add as AddIcon, ArrowBack as ArrowBackIcon, Delete as DeleteIcon } from '@mui/icons-material';
 import {
-    Alert,
-    Box,
-    Button,
-    Card,
-    CardContent,
-    FormControl,
-    IconButton,
-    MenuItem,
-    Paper,
-    Select,
-    Stack,
-    Table,
-    TableBody,
-    TableCell,
-    TableContainer,
-    TableHead,
-    TableRow,
-    TextField,
-    Typography,
-    useMediaQuery,
-    useTheme,
+  Alert,
+  Box,
+  Button,
+  Card,
+  CardContent,
+  Dialog,
+  DialogActions,
+  DialogContent,
+  DialogTitle,
+  FormControl,
+  IconButton,
+  MenuItem,
+  Paper,
+  Select,
+  Stack,
+  Table,
+  TableBody,
+  TableCell,
+  TableContainer,
+  TableHead,
+  TableRow,
+  TextField,
+  Typography,
+  useMediaQuery,
+  useTheme,
 } from '@mui/material';
 import { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
@@ -42,6 +46,8 @@ export const CreateOrderPage = () => {
   const [items, setItems] = useState<CreateOrderItem[]>([
     { productId: '', name: '', quantity: 1, price: 0 },
   ]);
+  const [confirmDialogOpen, setConfirmDialogOpen] = useState(false);
+  const [createdOrderId, setCreatedOrderId] = useState<string | null>(null);
 
   useEffect(() => {
     const loadProducts = async () => {
@@ -100,11 +106,9 @@ export const CreateOrderPage = () => {
     const createdOrder: any = result.payload;
     toast.success('Order created successfully');
 
-    const proceedToPayment = window.confirm('Order created. Do you want to proceed to payment now?');
-    if (proceedToPayment && createdOrder && createdOrder.id) {
-      navigate(`/orders/${createdOrder.id}/pay`);
-    } else if (createdOrder && createdOrder.id) {
-      navigate(`/orders/${createdOrder.id}`);
+    if (createdOrder && createdOrder.id) {
+      setCreatedOrderId(createdOrder.id);
+      setConfirmDialogOpen(true);
     } else {
       navigate('/orders');
     }
@@ -294,6 +298,54 @@ export const CreateOrderPage = () => {
           </Box>
         </form>
       </Paper>
+
+      <Dialog
+        open={confirmDialogOpen}
+        onClose={() => {
+          setConfirmDialogOpen(false);
+          if (createdOrderId) {
+            navigate(`/orders/${createdOrderId}`);
+          } else {
+            navigate('/orders');
+          }
+        }}
+        fullWidth
+        maxWidth="xs"
+      >
+        <DialogTitle>Proceed to payment?</DialogTitle>
+        <DialogContent dividers>
+          <Typography>
+            Your order has been created successfully. Would you like to proceed to the payment page now, or view the order details?
+          </Typography>
+        </DialogContent>
+        <DialogActions>
+          <Button
+            onClick={() => {
+              setConfirmDialogOpen(false);
+              if (createdOrderId) {
+                navigate(`/orders/${createdOrderId}`);
+              } else {
+                navigate('/orders');
+              }
+            }}
+          >
+            View order
+          </Button>
+          <Button
+            variant="contained"
+            onClick={() => {
+              setConfirmDialogOpen(false);
+              if (createdOrderId) {
+                navigate(`/orders/${createdOrderId}/pay`);
+              } else {
+                navigate('/orders');
+              }
+            }}
+          >
+            Go to payment
+          </Button>
+        </DialogActions>
+      </Dialog>
     </Box>
   );
 };

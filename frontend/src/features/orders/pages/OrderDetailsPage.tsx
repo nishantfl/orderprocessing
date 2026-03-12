@@ -9,6 +9,10 @@ import {
     Chip,
     CircularProgress,
     Divider,
+    Dialog,
+    DialogActions,
+    DialogContent,
+    DialogTitle,
     FormControl,
     InputLabel,
     MenuItem,
@@ -49,6 +53,8 @@ export const OrderDetailsPage = () => {
     { id: string; amount: string; status: string; createdAt: string }[]
   >([]);
   const [paymentsError, setPaymentsError] = useState<string | null>(null);
+  const [cancelDialogOpen, setCancelDialogOpen] = useState(false);
+  const [cancelHasPayments, setCancelHasPayments] = useState(false);
 
   useEffect(() => {
     if (orderId) {
@@ -64,14 +70,24 @@ export const OrderDetailsPage = () => {
   }, [dispatch, orderId]);
 
   const handleCancelOrder = async () => {
-    if (orderId && window.confirm('Are you sure you want to cancel this order? This cannot be undone.')) {
-      const result = await dispatch(cancelOrder(orderId));
-      if (cancelOrder.fulfilled.match(result)) {
-        toast.success('Order cancelled successfully');
-      } else {
-        toast.error('Failed to cancel order');
-      }
+    if (!orderId || !selectedOrder) return;
+    const hasPayments = Number(selectedOrder.totalPaid ?? 0) > 0;
+    setCancelHasPayments(hasPayments);
+    setCancelDialogOpen(true);
+  };
+
+  const handleConfirmCancel = async () => {
+    if (!orderId) {
+      setCancelDialogOpen(false);
+      return;
     }
+    const result = await dispatch(cancelOrder(orderId));
+    if (cancelOrder.fulfilled.match(result)) {
+      toast.success('Order cancelled successfully');
+    } else {
+      toast.error('Failed to cancel order');
+    }
+    setCancelDialogOpen(false);
   };
 
   const handleStatusChange = async (event: SelectChangeEvent<OrderStatus>) => {
@@ -339,6 +355,30 @@ export const OrderDetailsPage = () => {
           </TableContainer>
         )}
       </Paper>
+
+      <Dialog
+        open={cancelDialogOpen}
+        onClose={() => setCancelDialogOpen(false)}
+        fullWidth
+        maxWidth="xs"
+      >
+        <DialogTitle>Confirm cancellation</DialogTitle>
+        <DialogContent dividers>
+          <Typography>
+            {cancelHasPayments
+              ? 'This order has received payments. If you cancel it, the payment will need to be refunded to the original source account. Are you sure you want to cancel this order?'
+              : 'Are you sure you want to cancel this order? This action cannot be undone.'}
+          </Typography>
+        </DialogContent>
+        <DialogActions>
+          <Button onClick={() => setCancelDialogOpen(false)}>
+            Keep order
+          </Button>
+          <Button color="error" variant="contained" onClick={handleConfirmCancel}>
+            Cancel order
+          </Button>
+        </DialogActions>
+      </Dialog>
     </Box>
   );
 };
